@@ -1,0 +1,390 @@
+---
+title: "Early-warnings signals in ecological systems"
+author: "Roberto Álvarez. Universidad Autónoma de Querétaro"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: 
+    fig_height: 8
+    fig_width: 13
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: yes
+  word_document:
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+## Introducción
+
+En este tutorial aprenderás a detectar **señales de alerta temprana
+(EWS)** con el paquete **`EWSmethods`**.\
+Lo dividiremos en tres partes:
+
+1.  Medidas **univariadas** (`uniEWS()`)
+2.  Medidas **multivariadas** (`multiEWS()`)
+3.  **Deep‑Learning** con **EWSNet** (`ewsnet_*()`)
+
+Cada sección ofrece ejemplos reproducibles y un bloque de
+**ejercicios**.
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(EWSmethods)
+library(tidyverse)
+library(patchwork)
+```
+
+------------------------------------------------------------------------
+
+## Medidas univariadas
+
+En esta sección aprenderás a calcular medidas univariadas de EWS, que
+son indicadores estadísticos de cambios en la dinámica de una serie
+temporal.
+
+El objeto `simTransComms` contiene tres réplicas simuladas de una
+comunidad con cinco especies. En cada réplica, la comunidad ha sido
+forzada hacia una transición crítica como resultado de la introducción
+de una especie invasora. Este conjunto de datos está basado en la
+simulación descrita por Dakos (2018).
+
+Dependiendo del tipo de análisis, podemos usar simTransComms de dos
+maneras:
+
+-   Análisis multivariado con `multiEWS()` Usaremos todas las series de
+    abundancia de las cinco especies de manera conjunta para detectar
+    señales tempranas que afectan al sistema como un todo.
+-   Análisis univariado con `uniEWS()` También podemos seleccionar una
+    sola serie temporal (por ejemplo, una sola especie) y aplicar los
+    análisis de forma individual. Esto nos permitirá comparar si los
+    patrones de alerta se detectan mejor en análisis integrados
+    (multivariados) o por separado (univariados).
+
+Vamos a usar este objeto como ejemplo para aplicar análisis de señales
+de alerta temprana en comunidades multiespecie.
+
+`CODrecovery` tiene tres réplicas simuladas de una población de bacalao
+( *Gadus morhua* ) que pasa de un estado de pesca intensiva seguido de
+una pesca moderada. Esto datos fueron publicados por Clements *et al.*
+en 2019.
+
+```{r}
+data("simTransComms")
+
+data("CODrecovery")
+```
+
+Visualizamos las series de abundancia de bacalao:
+
+```{r}
+plot(x = CODrecovery$scenario2$time, y = CODrecovery$scenario2$biomass, type = "l", xlab = "Year", ylab = "Abundance", main = "Recovering cod population")
+```
+
+Versión mejorada en ggplot2
+
+```{r}
+ggplot(CODrecovery$scenario2,            # el data frame
+       aes(x = time, y = biomass)) +     # mapeo estético
+  geom_line(size = 1) +                  # línea continua
+  labs(
+    title = "Recovering cod population",
+    x = "Year",
+    y = "Abundance"
+  ) +
+  theme_minimal(base_size = 14)    
+```
+
+**Ejercicios**
+
+-   Explora el objeto `CODrecovery` y analiza las series de abundancia
+    de bacalao.
+-   Crea un gráfico que muestre las tres réplicas de la serie de
+    abundancia de bacalao en un solo gráfico.
+-   ¿Qué patrones observas en las series de abundancia de bacalao?
+-   Grafica las 5 species juntas
+-   ¿Qué significa el valor inflection_pt?
+
+Sin embargo , para evaluar señales de alerta **temprana** (EWS) los
+datos deben ser analizados antes de una transición crítica. Por lo que,
+para estos casos vamos a truncar lso datos previo a esa transición.
+
+```{r}
+pre_CODrecovery <- subset(CODrecovery$scenario2,time < inflection_pt)
+pre_simTransComms <- subset(simTransComms$community1,time < inflection_pt)
+
+```
+
+Veamos cómo se ven los datos
+
+```{r}
+#plot(pre_CODrecovery$scenario2$time,pre_CODrecovery$scenario2$biomass, type = "l", xlab = "Year", ylab = "Abundance", main = "Recovering cod population")
+```
+
+## Ventanas deslizantes
+
+Uno de los métodos más utilizados para calcular señales de alerta
+temprana es el enfoque de **ventanas deslizantes**, gracias a los
+trabajos pioneros de Dakos et al. (2012) y al desarrollo del paquete
+`earlywarnings`. Este enfoque consiste en analizar fragmentos móviles de
+una serie de tiempo para detectar cambios sutiles en indicadores como la
+varianza, la autocorrelación o la asimetría (*skewness*) antes de una
+transición crítica.
+
+En el paquete `EWSmethods`, la función `uniEWS()` permite aplicar este
+enfoque de forma sencilla. Puedes ajustar dos argumentos clave:
+
+1.  `method =` permite especificar el tipo de análisis (por ejemplo,
+    rolling o expanding).
+2.  `winsize =` define el tamaño de la ventana como un porcentaje del
+    total de la serie de tiempo. Por ejemplo, winsize = 50 usará una
+    ventana que cubre el 50% de los datos y se moverá a lo largo del
+    tiempo.
+
+![Ventana deslizante](RollingWindow.png)
+
+```{r}
+rolling_ews_eg <- uniEWS(data = pre_simTransComms[,c(2,5)],
+                         metrics = c("ar1","SD","skew"),
+                         method = "rolling",winsize = 50)
+```
+
+```{r}
+plot(rolling_ews_eg,  y_lab = "Density")
+```
+
+### Limitaciones del enfoque de ventanas deslizantes
+
+El método de ventanas deslizantes es muy utilizado por su simplicidad,
+pero esta misma característica puede limitar su utilidad en ciertas
+situaciones.
+
+En este enfoque, una señal de advertencia (EWS) se considera detectada
+cuando el indicador (por ejemplo, la varianza, la autocorrelación o la
+asimetría) muestra una correlación positiva fuerte con el tiempo. Esta
+relación se mide comúnmente con el coeficiente de Tau de Kendall, que
+indica si el indicador tiende a aumentar conforme nos acercamos a una
+posible transición crítica.
+
+**¿Cuál es el problema?**
+
+El problema es que este enfoque puede generar **falsas alarmas**. Es
+decir, puede indicar que hay una señal de alerta temprana cuando en
+realidad no la hay. Esto sucede porque el método de ventanas deslizantes
+no considera adecuadamente la variabilidad natural de los datos y puede
+detectar correlaciones que no son relevantes para la transición crítica.
+No existe un consenso claro sobre qué tan fuerte debe ser esa
+correlación para considerarse realmente una alerta. En la literatura se
+han propuesto valores muy variados: desde 0.5 hasta 0.9 (Dakos et al.
+2012, Dablander et al. 2022, Southall et al. 2022). Esto sugiere que el
+umbral de alarma es dependiente del contexto y del tipo de sistema
+ecológico o social que se esté estudiando.
+
+### ¿Qué alternativa existe?
+
+Para abordar este problema,**Dakos et al. (2012)** propusieron un
+enfoque más robusto basado en **permutaciones aleatorias**:
+
+1.  A partir de la serie de tiempo original, se generan muchas versiones
+    **aleatorias** (reordenadas).
+
+2.  Para cada una de esas versiones permutadas, se calcula también el
+    coeficiente Tau de Kendall.
+
+3.  Luego, se compara el coeficiente de la serie original con la
+    distribución obtenida de las permutaciones.
+
+**Si el coeficiente de la serie original es mayor que el 95% de los
+coeficientes permutados**, entonces se considera una **señal
+estadísticamente significativa de advertencia**.
+
+## Ventanas expandibles
+
+Este método puede ser especialmente útil para reducir la cantidad de
+**falsas alarmas** cuando se trabaja con series de tiempo cortas o muy
+variables.
+
+Para utilizarlo con la función `uniEWS()`, solo necesitamos hacer dos
+cambios:
+
+-   Cambiar el argumento `method =` a`"expanding"`.
+
+-   Sustituir`winsize =`por`burn_in =`, que define el**número de puntos
+    iniciales**que se usarán como referencia el algoritmo antes de
+    comenzar a calcular los indicadores de alerta temprana.
+
+### ¿Por qué usar `burn_in`?
+
+Este parámetro le indica a la función cuántos datos considerar al inicio
+como **base de referencia**(es decir, cuando todavía no se espera una
+transición). Luego, conforme avanza el tiempo, se van incorporando
+nuevos puntos a la serie de manera acumulativa.
+
+Esto ayuda a evitar problemas frecuentes al comienzo del análisis, como:
+
+-   Resultados ruidosos cuando hay pocos datos.
+
+-   Falsas señales de advertencia provocadas por fluctuaciones naturales
+    que ocurren al inicio.
+
+Según O’Brien & Clements (2021), el uso de`burn_in`en el enfoque
+expansivo**mejora la confiabilidad**de los análisis en comparación con
+el uso de ventanas deslizantes en series muy cortas o altamente
+variables.
+
+![Ventana expandible](ExpandingWindow.png)
+
+```{r}
+expanding_ews_eg <- uniEWS(data = pre_simTransComms[,c(2,5)],
+                         metrics = c("ar1","SD","skew"),
+                         method = "expanding",
+                         burn_in = 50,
+                         threshold = 2)
+```
+
+```{r}
+plot(expanding_ews_eg, y_lab = "Density")
+```
+
+### Confirmando señales de advertencia con ventanas expansivas y métricas compuestas
+
+Al igual que con el enfoque de ventanas deslizantes, el uso
+de **ventanas expansivas** permite detectar señales de alerta temprana
+cuando los indicadores —como la autocorrelación (AR1), la desviación
+estándar (SD) o la asimetría (skewness)— **superan un umbral crítico**,
+comúnmente definido como **2 desviaciones estándar (2σ)** por encima de
+su media.
+
+🔍 En este caso, varios indicadores superaron el umbral en **más de dos
+momentos consecutivos a partir del tiempo \~170**, lo que sugiere
+una **posible transición crítica inminente**.
+
+------------------------------------------------------------------------
+
+### ¿Por qué confiar más en esta señal?
+
+Aunque cada indicador individual puede ofrecer pistas, la evidencia
+es **más robusta** cuando estos indicadores se combinan en lo que se
+llama una **métrica compuesta**. En este análisis:
+
+-   Se calculó una métrica compuesta sumando los valores**normalizados
+    (estandarizados)**de AR1, SD y skewness.
+
+-   Esta métrica también mostró una señal clara desde el tiempo
+    \~170,**reforzando la confianza**en la advertencia detectada.
+
+Según Clements & Ozgul (2016), las métricas compuestas suelen ser más
+confiables que los indicadores individuales, ya que **integran
+diferentes dimensiones de pérdida de resiliencia** y reducen el riesgo
+de falsos positivos debidos al comportamiento errático de un solo
+indicador.
+
+### Integración de información de rasgos en EWS: mejorando la detección
+
+Una de las funcionalidades más avanzadas que ofrece la
+función `uniEWS()` es la posibilidad de **combinar múltiples fuentes de
+información** al momento de evaluar señales de alerta temprana.
+
+Además de analizar solo los cambios en la abundancia o biomasa, es
+posible incorporar **rasgos funcionales**, como el tamaño corporal, que
+pueden reflejar cambios en la fisiología, el comportamiento o la
+ecología de una especie.
+
+------------------------------------------------------------------------
+
+### ¿Por qué esto es importante?
+
+Estudios recientes (Clements & Ozgul, 2016; Baruah et al., 2020) han
+demostrado que incorporar información de rasgos mejora considerablemente
+la precisión del análisis.\
+En particular, permite:
+
+-   **Reducir la tasa de falsos positivos**, es decir, evitar señales
+    que parecen advertencias pero no lo son.
+
+-   **Incrementar la detección de verdaderos positivos**, es decir,
+    señales reales de que el sistema se está acercando a una transición
+    crítica.
+
+------------------------------------------------------------------------
+
+### ¿Cómo se usa esto en `uniEWS()`?
+
+Para activar esta funcionalidad, hay que cumplir tres condiciones:
+
+1.  Usar `method = "expanding"`(ventana expansiva).
+
+2.  Incluir`"trait"` dentro del argumento `metrics =`.
+
+3.  Proporcionar una **serie de tiempo adicional** en el
+    argumento `trait =`, que contenga el valor del rasgo (por ejemplo,
+    tamaño corporal) correspondiente a cada punto de tiempo.
+
+Al cumplir estos requisitos, `uniEWS()`**combina los indicadores
+basados en abundancia con los cambios observados en el rasgo**y genera
+una **métrica compuesta más robusta**.
+
+
+```{r}
+trait_ews_eg <- uniEWS(data = pre_CODrecovery[,c(2,3)],
+                         metrics = c("ar1","SD","trait"), #note "trait" is provided here
+                         method = "expanding",
+                         trait = pre_CODrecovery$mean.size, #and here
+                         burn_in = 15, #small burn_in due to shorter time series
+                         threshold = 2)
+```
+
+
+```{r}
+plot(trait_ews_eg, y_lab = "Density", trait_lab = "Mean size (g)")
+
+```
+## Ejercicio
+
+Considera los datos de Tripati et al 2005 (`end_of_greenhouse.txt`), de Chen et al  2018 (`dryland_ecosystems.txt`) y de DeMenocal et al 2001 (`desertification.txt`) que les proporciono
+
+Utilizando el paquete `EWSmethods`, realiza los siguientes pasos:
+1. Carga los datos de Tripati 2005 y visualiza las series de
+    abundancia de las especies.
+2. Aplica el análisis de señales de alerta temprana univariado
+    utilizando el enfoque de ventanas deslizantes (`method = "rolling"`).
+3. Repite el análisis utilizando el enfoque de ventanas expansivas
+    (`method = "expanding"`).
+4. Compara los resultados de ambos enfoques y discute las diferencias
+    observadas.
+    
+## Referencias clave
+
+-   Dakos et al.(2012) *PLoS ONE* – Early‑warning signals in ecological
+    transitions.
+
+-   O'brien, D. A., & Clements, C. F. (2021). Early warning signal
+    reliability varies with COVID-19 waves. *Biology Letters*, *17*(12),
+    20210487
+
+-   Deb, S., Sidheekh, S., Clements, C. F., Krishnan, N. C., &
+    Dutta, P. S. (2022). Machine learning methods trained on simple
+    models can predict critical transitions in complex natural systems.
+    *Royal Society Open Science*, *9*(2), 211475.
+
+-   Weinans, E., Quax, R., van Nes, E. H., & Leemput, I. A. V. D.
+    (2021). Evaluating the performance of multivariate indicators of
+    resilience loss. *Scientific Reports*, *11*(1), 9148.
+
+-   Vignette oficial:
+    <https://cran.r-project.org/web/packages/EWSmethods/vignettes/ews_assessments.html>
+    - Eocene bipolar glaciation associated with global carbon cycle changes
+A. Tripati, J. Backman, H. Elderfield, P. Ferretti.
+Nature, Vol 436(7049), pp. 341--346. Nature Publishing Group. 2005.
+
+-   Rising variability, not slowing down, as a leading indicator of a stochastically driven abrupt transition in a dryland ecosystem
+N. Chen, C. Jayaprakash, K. Yu, V. Guttal.
+The American Naturalist, Vol 191(1), pp. E1--E14. University of Chicago Press Chicago, IL. 2018.
+- Cultural responses to climate change during the late Holocene
+P.B. DeMenocal.
+Science, Vol 292(5517), pp. 667--673. American Association for the Advancement of Science. 2001.
