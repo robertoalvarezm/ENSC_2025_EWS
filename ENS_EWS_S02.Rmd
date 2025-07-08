@@ -1,0 +1,371 @@
+---
+title: "Early-warnings signals in ecological systems Sesión 2"
+author: "Roberto Álvarez.  Universidad Autónoma de Querétaro"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: 
+    fig_height: 8
+    fig_width: 13
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: yes
+  word_document:
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# Medidas multivariadas para señales de alerta temprana
+
+## Introducción
+
+En este tutorial aprenderás a detectar **señales de alerta temprana
+(EWS)** con el paquete **`EWSmethods`**.\
+Lo dividiremos en tres partes:
+
+1.  Medidas **univariadas** (`uniEWS()`)
+2.  Medidas **multivariadas** (`multiEWS()`)
+3.  **Deep‑Learning** con **EWSNet** (`ewsnet_*()`)
+
+Cada sección ofrece ejemplos reproducibles y un bloque de
+**ejercicios**.
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(EWSmethods)
+library(tidyverse)
+library(patchwork)
+```
+
+------------------------------------------------------------------------
+
+## Medidas univariadas
+
+En esta sección aprenderás a calcular medidas univariadas de EWS, que
+son indicadores estadísticos de cambios en la dinámica de una serie
+temporal.
+
+El objeto `simTransComms` contiene tres réplicas simuladas de una
+comunidad con cinco especies. En cada réplica, la comunidad ha sido
+forzada hacia una transición crítica como resultado de la introducción
+de una especie invasora. Este conjunto de datos está basado en la
+simulación descrita por Dakos (2018).
+
+Dependiendo del tipo de análisis, podemos usar simTransComms de dos
+maneras:
+
+-   Análisis multivariado con `multiEWS()` Usaremos todas las series de
+    abundancia de las cinco especies de manera conjunta para detectar
+    señales tempranas que afectan al sistema como un todo.
+-   Análisis univariado con `uniEWS()` También podemos seleccionar una
+    sola serie temporal (por ejemplo, una sola especie) y aplicar los
+    análisis de forma individual. Esto nos permitirá comparar si los
+    patrones de alerta se detectan mejor en análisis integrados
+    (multivariados) o por separado (univariados).
+
+Vamos a usar este objeto como ejemplo para aplicar análisis de señales
+de alerta temprana en comunidades multiespecie.
+
+`CODrecovery` tiene tres réplicas simuladas de una población de bacalao
+( *Gadus morhua* ) que pasa de un estado de pesca intensiva seguido de
+una pesca moderada. Esto datos fueron publicados por Clements *et al.*
+en 2019.
+
+```{r}
+data("simTransComms")
+
+data("CODrecovery")
+```
+
+Visualizamos las series de abundancia de bacalao:
+
+```{r}
+plot(x = CODrecovery$scenario2$time, y = CODrecovery$scenario2$biomass, type = "l", xlab = "Year", ylab = "Abundance", main = "Recovering cod population")
+```
+
+Versión mejorada en ggplot2
+
+```{r}
+ggplot(CODrecovery$scenario2,            # el data frame
+       aes(x = time, y = biomass)) +     # mapeo estético
+  geom_line(size = 1) +                  # línea continua
+  labs(
+    title = "Recovering cod population",
+    x = "Year",
+    y = "Abundance"
+  ) +
+  theme_minimal(base_size = 14)    
+```
+
+**Ejercicios**
+
+-   Explora el objeto `CODrecovery` y analiza las series de abundancia
+    de bacalao.
+-   Crea un gráfico que muestre las tres réplicas de la serie de
+    abundancia de bacalao en un solo gráfico.
+-   ¿Qué patrones observas en las series de abundancia de bacalao?
+-   Grafica las 5 species juntas
+-   ¿Qué significa el valor inflection_pt?
+
+Sin embargo , para evaluar señales de alerta **temprana** (EWS) los
+datos deben ser analizados antes de una transición crítica. Por lo que,
+para estos casos vamos a truncar los datos previo a esa transición.
+
+```{r}
+pre_CODrecovery <- subset(CODrecovery$scenario2,time < inflection_pt)
+pre_simTransComms <- subset(simTransComms$community1,time < inflection_pt)
+
+```
+
+## Métricas multivariadas
+
+Una manera más robusta y completa de detectar señales de alerta temprana
+(EWS) consiste en usar indicadores multivariados. En lugar de analizar
+una sola variable del sistema, estos métodos integran múltiples series
+de tiempo u observaciones paralelas del mismo sistema (por ejemplo,
+varias especies, metabolitos o indicadores físicos) para evaluar si el
+sistema está acercándose a una transición crítica, pero a nivel
+comunitario o de sistema completo. Existen dos enfoques principales para
+calcular EWS multivariadas:
+
+1.Promedio de EWS univariadas: se calcula el indicador por separado para
+cada serie (como autocorrelación o desviación estándar) y luego se
+obtiene un promedio. 2.Reducción de dimensión: se combinan todas las
+series usando técnicas como PCA (análisis de componentes principales) o
+NMDS para obtener un resumen más compacto del comportamiento global del
+sistema, sobre el cual se aplican los EWS.
+
+Ambos enfoques están disponibles en la función `multEWS()` mediante el
+argumento `metrics =`. Para una evaluación a fondo de la efectividad de
+estas métricas en simulaciones, revisa el trabajo de Weinans et al.
+(2021).
+
+Sobre Weinans et al. (2021) Este estudio es uno de los más citados que
+evalúa distintos tipos de EWS multivariadas usando simulaciones de
+sistemas complejos (como redes tróficas o dinámicas de comunidades).
+Demuestra que, bajo ciertos tipos de transiciones (como pérdida de
+resiliencia comunitaria), los EWS multivariados son más confiables y
+menos propensos a falsos positivos que los univariados.
+
+**¿Por qué multivariado?**
+
+En muchos sistemas ecológicos, microbiológicos o sociales, una sola
+variable (por ejemplo, la abundancia de una especie) no es suficiente
+para capturar la dinámica del sistema completo.
+
+Por ejemplo:
+
+1.En un microbioma, distintas especies responden de forma diferente a un
+antibiótico.
+
+2.En un lago, oxígeno, temperatura, nutrientes y fitoplancton cambian de
+forma interdependiente. Los EWS multivariados permiten ver patrones
+globales, compensaciones entre variables y señales que emergen del
+conjunto, no solo de una parte.
+
+### Tipos de EWS multivariados
+
+| Tipo | ¿Qué hace? | Ejemplo | Ventajas |
+|------------------|------------------|------------------|------------------|
+| **Promedio de EWS univariadas** | Calcula AR1, varianza, etc., por serie individual y luego promedia. | AR1 promedio de 10 especies. | Simple de interpretar, fácil de implementar. |
+| **Reducción de dimensión + EWS** | Aplica PCA (u otra técnica) para condensar múltiples series en 1–2 componentes y calcula EWS sobre esos componentes. | PCA de abundancias → analiza la serie del primer PC. | Captura correlaciones, reduce ruido, más sensible a patrones globale |
+
+![Métricas multivariadas](MultiEws.png)
+
+### ¿Qué necesitas darle?
+
+1.  Una **tabla** (dataframe o matriz):
+
+    -   Filas: puntos en el tiempo (n).
+
+    -   Columnas: la primera es tiempo (`Time`), las siguientes son las
+        variables (m series representativas).
+
+    Ejemplo:
+
+    | Time | SpeciesA | SpeciesB | SpeciesC |
+    |------|----------|----------|----------|
+    | 1    | 0.12     | 0.45     | 0.32     |
+    | 2    | 0.14     | 0.48     | 0.29     |
+    | 3    | 0.13     | 0.50     | 0.27     |
+    | ...  | ...      | ...      | ...      |
+
+    **Importante**: La columna `Time` debe tener intervalos regulares
+    (ej. 1, 2, 3… o 0, 0.5, 1.0…).
+
+2.  Especificar los mismos argumentos que en `uniEWS()`:
+
+    -   `method = "rolling"`o`"expanding"`
+
+    -   `winsize =`si usas ventana deslizante
+
+    -   `burn_in =`si usas ventana expansiva
+
+### ¿Qué pasa “detrás de cámaras”?
+
+-   `multiEWS()`aplicará la lógica seleccionada (ventana deslizante o
+    expansiva)**sobre todas las variables a la vez**.
+
+-   Dependiendo del método elegido (`metrics =`), puede:
+
+    -   Calcular cada indicador univariado por serie y luego
+        promediarlos.
+
+    -   Aplicar PCA u otra reducción de dimensión y calcular los
+        indicadores sobre las componentes principales.
+
+-   El resultado es una nueva serie de tiempo de indicadores agregados
+    (multivariados), listos para ser visualizados y analizados.
+
+```{r}
+multi_ews_eg <- multiEWS(data = pre_simTransComms[,2:7],
+                         metrics = c("meanAR","maxAR","meanSD","maxSD","eigenMAF","mafAR","mafSD","pcaAR","pcaSD","eigenCOV","maxCOV","mutINFO"),
+                         method = "rolling",
+                         winsize = 50)
+```
+
+```{r}
+plot(multi_ews_eg)
+```
+
+En muchos casos, los indicadores multivariados presentan una **tendencia
+creciente a lo largo del tiempo**, lo cual se interpreta como una
+posible **señal de advertencia temprana** ante una transición crítica en
+el sistema.
+
+Este patrón creciente también puede observarse si, en lugar de usar una
+ventana deslizante, se emplea una **ventana expansiva**, que
+progresivamente incorpora más información conforme avanza la serie.
+
+Es importante destacar que `multiEWS()`**no calcula métricas
+compuestas**(es decir, combinaciones de varios indicadores en un solo
+valor), ya que**aún no se ha determinado cómo estas combinaciones
+afectan la precisión y confiabilidad de las predicciones**en contextos
+multivariados.
+
+```{r}
+multi_ews_eg2 <- multiEWS(data = pre_simTransComms[,2:7],
+                         method = "expanding",
+                         burn_in = 50,
+                         threshold = 2)
+```
+
+```{r}
+plot(multi_ews_eg2)
+```
+
+En este ejemplo, observamos que **varios indicadores multivariados
+generan señales de advertencia en diferentes momentos**.\
+Por ejemplo, el indicador `"eigenMAF"` comienza a alertar cerca
+del **tiempo 65**, mientras que `"meanAR"` lo hace cerca del **tiempo
+100**.\
+Sin embargo, lo más destacable es que **la mayoría de los indicadores
+coinciden en generar advertencias en los últimos 20 puntos de la serie
+temporal**.
+
+Este patrón muestra claramente la ventaja del uso de **ventanas
+expansivas** sobre las deslizantes, ya que permiten identificar con
+mayor precisión el **momento en que aparece cada señal de alerta**.
+
+Además, esto refuerza lo planteado por **Weinans et al. (2021)**: **no
+hay un indicador multivariado de alerta temprana que funcione mejor en
+todos los casos**.\
+El desempeño de cada indicador depende del **tipo de transición** y
+del **contexto dinámico del sistema** en estudio.
+
+### ¿Qué significa que los indicadores alerten en diferentes momentos?
+
+-   En un análisis multivariado, puedes usar varios indicadores como:
+
+    -   `meanAR`: promedio de autocorrelaciones
+
+    -   `eigenMAF`: relacionado con la varianza explicada por
+        componentes principales
+
+    -   `dominant eigenvalue`, `variance`, etc.
+
+-   En este caso:
+
+    -   `"eigenMAF"` detecta una anomalía **temprano (t ≈ 65)**
+
+    -   `"meanAR"` alerta **más tarde (t ≈ 100)**
+
+    -   Pero **la mayoría** lanza una advertencia **en los últimos 20
+        puntos** de la serie (digamos, t = 110–130)
+
+Esto indica que **las señales no aparecen simultáneamente**, sino que
+cada métrica reacciona de forma diferente al deterioro del sistema.
+
+### ¿Por qué las **ventanas expansivas** ayudan aquí?
+
+-   Las **ventanas deslizantes** solo permiten comparar pequeñas
+    porciones del tiempo y pueden generar señales inconsistentes o
+    fluctuantes.
+
+-   Las **ventanas expansivas**, en cambio:
+
+    -   Usan toda la historia acumulada hasta el punto actual.
+
+    -   Permiten detectar **tendencias claras y sostenidas**, como
+        aumentos graduales de autocorrelación o varianza.
+
+    -   Ayudan a definir **con precisión el punto en que el sistema
+        comienza a deteriorarse**.
+
+Esto es clave cuando **varios indicadores reaccionan en distintos
+momentos**: la ventana expansiva permite ver cuándo **convergen** esas
+señales.
+
+### ¿Por qué no hay un indicador “mejor”?
+
+Weinans et al. (2021) argumentan —con evidencia de simulaciones— que:
+
+-   El desempeño de cada indicador depende de **cómo y por qué se está
+    desestabilizando el sistema**.
+
+-   En algunas transiciones, **AR1** es muy sensible; en otras, lo es
+    más la **asimetría**, la **desviación estándar**, o los indicadores
+    de red o dimensión reducida como `"eigenMAF"`.
+
+-   El contexto importa: **sistemas lentos, ruidosos, multiescalares o
+    altamente correlacionados** responden distinto a cada métrica.
+
+## Referencias clave
+
+-   Dakos et al.(2012) *PLoS ONE* – Early‑warning signals in ecological
+    transitions.
+
+-   O'brien, D. A., & Clements, C. F. (2021). Early warning signal
+    reliability varies with COVID-19 waves. *Biology Letters*, *17*(12),
+    20210487
+
+-   Deb, S., Sidheekh, S., Clements, C. F., Krishnan, N. C., &
+    Dutta, P. S. (2022). Machine learning methods trained on simple
+    models can predict critical transitions in complex natural systems.
+    *Royal Society Open Science*, *9*(2), 211475.
+
+-   Weinans, E., Quax, R., van Nes, E. H., & Leemput, I. A. V. D.
+    (2021). Evaluating the performance of multivariate indicators of
+    resilience loss. *Scientific Reports*, *11*(1), 9148.
+
+-   Vignette oficial:
+    <https://cran.r-project.org/web/packages/EWSmethods/vignettes/ews_assessments.html>
+
+    -   Eocene bipolar glaciation associated with global carbon cycle
+        changes A. Tripati, J. Backman, H. Elderfield, P. Ferretti.
+        Nature, Vol 436(7049), pp. 341--346. Nature Publishing Group.
+        2005. 
+
+-   Rising variability, not slowing down, as a leading indicator of a
+    stochastically driven abrupt transition in a dryland ecosystem N.
+    Chen, C. Jayaprakash, K. Yu, V. Guttal. The American Naturalist, Vol
+    191(1), pp. E1--E14. University of Chicago Press Chicago, IL. 2018.
+
+-   Cultural responses to climate change during the late Holocene P.B.
+    DeMenocal. Science, Vol 292(5517), pp. 667--673. American
+    Association for the Advancement of Science. 2001.

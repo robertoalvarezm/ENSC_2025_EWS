@@ -361,8 +361,7 @@ Considera los datos de Tripati et al 2005 (`end_of_greenhouse.txt`), de Chen et 
 
 Utilizando el paquete `EWSmethods`, realiza los siguientes pasos: 
 
-1.Carga los datos de Tripati 2005 y visualiza las series de abundancia de
-las especies. 
+1.Carga los datos y visualiza las series de tiempo. 
 
 2. Aplica el análisis de señales de alerta temprana
 univariado utilizando el enfoque de ventanas deslizantes
