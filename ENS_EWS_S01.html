@@ -1488,7 +1488,7 @@ font-size: 0.95em;
 systems</h1>
 <h4 class="author">Roberto Álvarez. Universidad Autónoma de
 Querétaro</h4>
-<h4 class="date">06 July, 2025</h4>
+<h4 class="date">08 July, 2025</h4>
 
 </div>
 
@@ -1512,6 +1512,77 @@ Lo dividiremos en tres partes:</p>
 library(tidyverse)
 library(patchwork)</code></pre>
 <hr />
+<table>
+<colgroup>
+<col width="24%" />
+<col width="17%" />
+<col width="57%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th><strong>Métrica univariada (EWS)</strong></th>
+<th><strong>Tendencia al acercarse a la transición</strong></th>
+<th><strong>Razón simplificada</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Varianza (o Desviación estándar)</td>
+<td><strong>↑ Sube</strong></td>
+<td>Al desacelerarse la recuperación (critical slowing down) las
+perturbaciones se “acumulan” y la serie fluctúa cada vez con mayor
+amplitud.</td>
+</tr>
+<tr class="even">
+<td>Autocorrelación lag-1 (AR1)</td>
+<td><strong>↑ Sube</strong> (se acerca a 1)</td>
+<td>Un sistema lento “se parece” más a su estado anterior; los valores
+consecutivos se correlacionan más fuertemente.</td>
+</tr>
+<tr class="odd">
+<td>Tiempo de retorno (1/λ) o tasa de recuperación</td>
+<td><strong>↑ Sube</strong> (la tasa λ ↓)</td>
+<td>El eigenvalor dominante del sistema se aproxima a 0; por eso tarda
+más en volver al equilibrio tras una perturbación.</td>
+</tr>
+<tr class="even">
+<td>Coeficiente de variación (CV = SD/μ)</td>
+<td><strong>↑ Sube</strong></td>
+<td>La varianza crece mientras la media suele cambiar poco; la relación
+SD/μ aumenta.</td>
+</tr>
+<tr class="odd">
+<td>Skewness (asimetría)</td>
+<td><strong>↑ / ↓</strong> según el lado del punto cr´tico</td>
+<td>El pozo de potencial se deforma: la cola de la distribución se
+alarga hacia el estado alternativo, generando asimetría.</td>
+</tr>
+<tr class="even">
+<td>Kurtosis (exceso)</td>
+<td><strong>↑ (frecuente)</strong></td>
+<td>Colas más pesadas/“picos” más agudos por excursiones ocasionales y
+bruscas lejos del equilibrio.</td>
+</tr>
+<tr class="odd">
+<td>Espectro en baja frecuencia (“reddening”)</td>
+<td><strong>↑ Sube</strong> (más potencia a bajas f)</td>
+<td>Las oscilaciones lentas dominan porque el sistema filtra las altas
+frecuencias al volverse más lento en su recuperación.</td>
+</tr>
+<tr class="even">
+<td>Ratio varianza detrendida / total</td>
+<td><strong>↑ Sube</strong></td>
+<td>Aun después de quitar la tendencia, lo “ruidoso” residual aumenta,
+señal de resiliencia menguante.</td>
+</tr>
+<tr class="odd">
+<td>Entropía de la señal</td>
+<td><strong>↓ Baja</strong> (a veces)</td>
+<td>Con dinámicas más lentas, la serie se vuelve más predecible; la
+información nueva por unidad de tiempo disminuye.</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div id="medidas-univariadas" class="section level2" number="2">
 <h2><span class="header-section-number">2</span> Medidas

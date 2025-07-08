@@ -42,6 +42,19 @@ library(patchwork)
 
 ------------------------------------------------------------------------
 
+| **Métrica univariada (EWS)**                               | **Tendencia al acercarse a la transición** | **Razón simplificada**                                                                                                                    |
+| ---------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Varianza (o Desviación estándar)                           | **↑ Sube**                                 | Al desacelerarse la recuperación (critical slowing down) las perturbaciones se “acumulan” y la serie fluctúa cada vez con mayor amplitud. |
+| Autocorrelación lag-1 (AR1)                                | **↑ Sube** (se acerca a 1)                 | Un sistema lento “se parece” más a su estado anterior; los valores consecutivos se correlacionan más fuertemente.                         |
+| Tiempo de retorno (1/λ) o tasa de recuperación             | **↑ Sube** (la tasa λ ↓)                   | El eigenvalor dominante del sistema se aproxima a 0; por eso tarda más en volver al equilibrio tras una perturbación.                             |
+| Coeficiente de variación (CV = SD/μ)                       | **↑ Sube**                                 | La varianza crece mientras la media suele cambiar poco; la relación SD/μ aumenta.                                                        |
+| Skewness (asimetría)                                       | **↑ / ↓** según el lado del punto cr´tico       | El pozo de potencial se deforma: la cola de la distribución se alarga hacia el estado alternativo, generando asimetría.                   |
+| Kurtosis (exceso)                                          | **↑ (frecuente)**                          | Colas más pesadas/“picos” más agudos por excursiones ocasionales y bruscas lejos del equilibrio.                                          |
+| Espectro en baja frecuencia (“reddening”)                  | **↑ Sube** (más potencia a bajas f)        | Las oscilaciones lentas dominan porque el sistema filtra las altas frecuencias al volverse más lento en su recuperación.                                      |
+| Ratio varianza detrendida / total                          | **↑ Sube**                                 | Aun después de quitar la tendencia, lo “ruidoso” residual aumenta, señal de resiliencia menguante.                                     |
+| Entropía de la señal                                       | **↓ Baja** (a veces)                       | Con dinámicas más lentas, la serie se vuelve más predecible; la información nueva por unidad de tiempo disminuye.                         |
+
+
 ## Medidas univariadas
 
 En esta sección aprenderás a calcular medidas univariadas de EWS, que
