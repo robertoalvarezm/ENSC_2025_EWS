@@ -42,18 +42,17 @@ library(patchwork)
 
 ------------------------------------------------------------------------
 
-| **Métrica univariada (EWS)**                               | **Tendencia al acercarse a la transición** | **Razón simplificada**                                                                                                                    |
-| ---------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Varianza (o Desviación estándar)                           | **↑ Sube**                                 | Al desacelerarse la recuperación (critical slowing down) las perturbaciones se “acumulan” y la serie fluctúa cada vez con mayor amplitud. |
-| Autocorrelación lag-1 (AR1)                                | **↑ Sube** (se acerca a 1)                 | Un sistema lento “se parece” más a su estado anterior; los valores consecutivos se correlacionan más fuertemente.                         |
-| Tiempo de retorno (1/λ) o tasa de recuperación             | **↑ Sube** (la tasa λ ↓)                   | El eigenvalor dominante del sistema se aproxima a 0; por eso tarda más en volver al equilibrio tras una perturbación.                             |
-| Coeficiente de variación (CV = SD/μ)                       | **↑ Sube**                                 | La varianza crece mientras la media suele cambiar poco; la relación SD/μ aumenta.                                                        |
-| Skewness (asimetría)                                       | **↑ / ↓** según el lado del punto cr´tico       | El pozo de potencial se deforma: la cola de la distribución se alarga hacia el estado alternativo, generando asimetría.                   |
-| Kurtosis (exceso)                                          | **↑ (frecuente)**                          | Colas más pesadas/“picos” más agudos por excursiones ocasionales y bruscas lejos del equilibrio.                                          |
-| Espectro en baja frecuencia (“reddening”)                  | **↑ Sube** (más potencia a bajas f)        | Las oscilaciones lentas dominan porque el sistema filtra las altas frecuencias al volverse más lento en su recuperación.                                      |
-| Ratio varianza detrendida / total                          | **↑ Sube**                                 | Aun después de quitar la tendencia, lo “ruidoso” residual aumenta, señal de resiliencia menguante.                                     |
-| Entropía de la señal                                       | **↓ Baja** (a veces)                       | Con dinámicas más lentas, la serie se vuelve más predecible; la información nueva por unidad de tiempo disminuye.                         |
-
+| **Métrica univariada (EWS)** | **Tendencia al acercarse a la transición** | **Razón simplificada** |
+|-----------------|-----------------|---------------------------------------|
+| Varianza (o Desviación estándar) | **↑ Sube** | Al desacelerarse la recuperación (critical slowing down) las perturbaciones se “acumulan” y la serie fluctúa cada vez con mayor amplitud. |
+| Autocorrelación lag-1 (AR1) | **↑ Sube** (se acerca a 1) | Un sistema lento “se parece” más a su estado anterior; los valores consecutivos se correlacionan más fuertemente. |
+| Tiempo de retorno (1/λ) o tasa de recuperación | **↑ Sube** (la tasa λ ↓) | El eigenvalor dominante del sistema se aproxima a 0; por eso tarda más en volver al equilibrio tras una perturbación. |
+| Coeficiente de variación (CV = SD/μ) | **↑ Sube** | La varianza crece mientras la media suele cambiar poco; la relación SD/μ aumenta. |
+| Skewness (asimetría) | **↑ / ↓** según el lado del punto cr´tico | El pozo de potencial se deforma: la cola de la distribución se alarga hacia el estado alternativo, generando asimetría. |
+| Kurtosis (exceso) | **↑ (frecuente)** | Colas más pesadas/“picos” más agudos por excursiones ocasionales y bruscas lejos del equilibrio. |
+| Espectro en baja frecuencia (“reddening”) | **↑ Sube** (más potencia a bajas f) | Las oscilaciones lentas dominan porque el sistema filtra las altas frecuencias al volverse más lento en su recuperación. |
+| Ratio varianza detrendida / total | **↑ Sube** | Aun después de quitar la tendencia, lo “ruidoso” residual aumenta, señal de resiliencia menguante. |
+| Entropía de la señal | **↓ Baja** (a veces) | Con dinámicas más lentas, la serie se vuelve más predecible; la información nueva por unidad de tiempo disminuye. |
 
 ## Medidas univariadas
 
@@ -266,24 +265,24 @@ plot(expanding_ews_eg, y_lab = "Density")
 
 ### Confirmando señales de advertencia con ventanas expansivas y métricas compuestas
 
-Al igual que con el enfoque de ventanas deslizantes, el uso
-de **ventanas expansivas** permite detectar señales de alerta temprana
+Al igual que con el enfoque de ventanas deslizantes, el uso de
+**ventanas expansivas** permite detectar señales de alerta temprana
 cuando los indicadores —como la autocorrelación (AR1), la desviación
 estándar (SD) o la asimetría (skewness)— **superan un umbral crítico**,
 comúnmente definido como **2 desviaciones estándar (2σ)** por encima de
 su media.
 
 🔍 En este caso, varios indicadores superaron el umbral en **más de dos
-momentos consecutivos a partir del tiempo \~170**, lo que sugiere
-una **posible transición crítica inminente**.
+momentos consecutivos a partir del tiempo \~170**, lo que sugiere una
+**posible transición crítica inminente**.
 
 ------------------------------------------------------------------------
 
 ### ¿Por qué confiar más en esta señal?
 
-Aunque cada indicador individual puede ofrecer pistas, la evidencia
-es **más robusta** cuando estos indicadores se combinan en lo que se
-llama una **métrica compuesta**. En este análisis:
+Aunque cada indicador individual puede ofrecer pistas, la evidencia es
+**más robusta** cuando estos indicadores se combinan en lo que se llama
+una **métrica compuesta**. En este análisis:
 
 -   Se calculó una métrica compuesta sumando los valores**normalizados
     (estandarizados)**de AR1, SD y skewness.
@@ -299,8 +298,8 @@ indicador.
 
 ### Integración de información de rasgos en EWS: mejorando la detección
 
-Una de las funcionalidades más avanzadas que ofrece la
-función `uniEWS()` es la posibilidad de **combinar múltiples fuentes de
+Una de las funcionalidades más avanzadas que ofrece la función
+`uniEWS()` es la posibilidad de **combinar múltiples fuentes de
 información** al momento de evaluar señales de alerta temprana.
 
 Además de analizar solo los cambios en la abundancia o biomasa, es
@@ -334,14 +333,13 @@ Para activar esta funcionalidad, hay que cumplir tres condiciones:
 
 2.  Incluir`"trait"` dentro del argumento `metrics =`.
 
-3.  Proporcionar una **serie de tiempo adicional** en el
-    argumento `trait =`, que contenga el valor del rasgo (por ejemplo,
-    tamaño corporal) correspondiente a cada punto de tiempo.
+3.  Proporcionar una **serie de tiempo adicional** en el argumento
+    `trait =`, que contenga el valor del rasgo (por ejemplo, tamaño
+    corporal) correspondiente a cada punto de tiempo.
 
-Al cumplir estos requisitos, `uniEWS()`**combina los indicadores
-basados en abundancia con los cambios observados en el rasgo**y genera
-una **métrica compuesta más robusta**.
-
+Al cumplir estos requisitos, `uniEWS()`**combina los indicadores basados
+en abundancia con los cambios observados en el rasgo**y genera una
+**métrica compuesta más robusta**.
 
 ```{r}
 trait_ews_eg <- uniEWS(data = pre_CODrecovery[,c(2,3)],
@@ -352,25 +350,30 @@ trait_ews_eg <- uniEWS(data = pre_CODrecovery[,c(2,3)],
                          threshold = 2)
 ```
 
-
 ```{r}
 plot(trait_ews_eg, y_lab = "Density", trait_lab = "Mean size (g)")
 
 ```
-## Ejercicio
 
-Considera los datos de Tripati et al 2005 (`end_of_greenhouse.txt`), de Chen et al  2018 (`dryland_ecosystems.txt`) y de DeMenocal et al 2001 (`desertification.txt`) que les proporciono
+## Ejercicios (Tarea cortesía de César)
 
-Utilizando el paquete `EWSmethods`, realiza los siguientes pasos:
-1. Carga los datos de Tripati 2005 y visualiza las series de
-    abundancia de las especies.
-2. Aplica el análisis de señales de alerta temprana univariado
-    utilizando el enfoque de ventanas deslizantes (`method = "rolling"`).
-3. Repite el análisis utilizando el enfoque de ventanas expansivas
-    (`method = "expanding"`).
-4. Compara los resultados de ambos enfoques y discute las diferencias
-    observadas.
-    
+Considera los datos de Tripati et al 2005 (`end_of_greenhouse.txt`), de Chen et al 2018 (`dryland_ecosystems.txt`) y de DeMenocal et al 2001 (`desertification.txt`) que les proporciono
+
+Utilizando el paquete `EWSmethods`, realiza los siguientes pasos: 
+
+1.Carga los datos de Tripati 2005 y visualiza las series de abundancia de
+las especies. 
+
+2. Aplica el análisis de señales de alerta temprana
+univariado utilizando el enfoque de ventanas deslizantes
+(`method = "rolling"`). 
+
+3. Repite el análisis utilizando el enfoque de
+ventanas expansivas (`method = "expanding"`). 
+
+4. Compara los resultados
+de ambos enfoques y discute las diferencias observadas.
+
 ## Referencias clave
 
 -   Dakos et al.(2012) *PLoS ONE* – Early‑warning signals in ecological
@@ -391,13 +394,17 @@ Utilizando el paquete `EWSmethods`, realiza los siguientes pasos:
 
 -   Vignette oficial:
     <https://cran.r-project.org/web/packages/EWSmethods/vignettes/ews_assessments.html>
-    - Eocene bipolar glaciation associated with global carbon cycle changes
-A. Tripati, J. Backman, H. Elderfield, P. Ferretti.
-Nature, Vol 436(7049), pp. 341--346. Nature Publishing Group. 2005.
 
--   Rising variability, not slowing down, as a leading indicator of a stochastically driven abrupt transition in a dryland ecosystem
-N. Chen, C. Jayaprakash, K. Yu, V. Guttal.
-The American Naturalist, Vol 191(1), pp. E1--E14. University of Chicago Press Chicago, IL. 2018.
-- Cultural responses to climate change during the late Holocene
-P.B. DeMenocal.
-Science, Vol 292(5517), pp. 667--673. American Association for the Advancement of Science. 2001.
+    -   Eocene bipolar glaciation associated with global carbon cycle
+        changes A. Tripati, J. Backman, H. Elderfield, P. Ferretti.
+        Nature, Vol 436(7049), pp. 341--346. Nature Publishing Group.
+        2005.
+
+-   Rising variability, not slowing down, as a leading indicator of a
+    stochastically driven abrupt transition in a dryland ecosystem N.
+    Chen, C. Jayaprakash, K. Yu, V. Guttal. The American Naturalist, Vol
+    191(1), pp. E1--E14. University of Chicago Press Chicago, IL. 2018.
+
+-   Cultural responses to climate change during the late Holocene P.B.
+    DeMenocal. Science, Vol 292(5517), pp. 667--673. American
+    Association for the Advancement of Science. 2001.
