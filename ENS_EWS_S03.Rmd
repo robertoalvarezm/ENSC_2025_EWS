@@ -1,0 +1,668 @@
+---
+title: "Early-warnings signals in ecological systems Sesión 3"
+author: "Roberto Álvarez.  Universidad Autónoma de Querétaro"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: 
+    fig_height: 8
+    fig_width: 13
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: yes
+  word_document:
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# Métricas alternativas de estabilidad
+
+
+
+Este tutorial presenta **métricas de estabilidad** que
+son **distintas** a las señales de alerta temprana (EWS, por sus siglas
+en inglés) basadas en el **fenómeno de desaceleración
+crítica** (*critical slowing down*, CSD). Es decir, **no se enfocan en
+detectar transiciones críticas observando cómo el sistema se vuelve más
+lento para recuperarse ante perturbaciones**.
+
+Lo que hace valioso a este conjunto de técnicas es que **no retraduccn
+que el sistema esté en equilibrio**, ni tampoco**suponen ningún modelo
+matemático subyacente específico**. Esto las vuelve especialmente útiles
+para analizar sistemas reales complejos, donde a menudo **no se conoce
+bien el modelo dinámico **o** el sistema está en constante cambio**, sin
+alcanzar un punto estable.
+
+El paquete `EWSmethods` en R ofrece **tres enfoques diferentes** para
+cuantificar la estabilidad de un sistema a partir de datos de series de
+tiempo, **independientemente de que haya o no una transición crítica
+inminente**.\
+A lo largo del tutorial se explicará cada uno de estos métodos, paso a
+paso, y se incluirán ejemplos prácticos para mostrar cómo se aplican.
+
+------------------------------------------------------------------------
+
+-   Mientras que las EWS tradicionales buscan detectar **transiciones
+    críticas** (como el colapso de un lago o un cambio brusco en una
+    población) mediante indicadores como la varianza, la
+    autocorrelación, etc.,**estos métodos alternativos de estabilidad
+    pueden evaluar la resiliencia del sistema sin que se esté acercando
+    necesariamente a un tipping point**.
+
+-   Al ser **modelo-libre** (*model-free*)
+    y **equilibrio-libre** (*equilibrium-free*), estos métodos pueden
+    aplicarse a sistemas:
+
+    -   Que están lejos del equilibrio.
+
+    -   Con múltiples forzamientos externos.
+
+    -   En los que no se pueden definir bien las variables de estado ni
+        las tasas de cambio.
+
+```{r}
+library(EWSmethods) # Asegúrate de tenerlo instalado
+library(ggplot2) # Para visualización)
+data("simTransComms") # Carga el objeto en memoria
+
+# Explora rápidamente su estructura
+str(simTransComms)
+
+# Por ejemplo, veamos las primeras filas de la primera réplica
+head(simTransComms$community1)
+
+```
+
+```{r}
+matplot(simTransComms$community1[,3:7], type = "l", xlab = "Time", ylab = "Density",  main = "Transitioning five species community")
+abline(v=simTransComms$community1$inflection_pt,col = "grey60", lty = "dashed")
+```
+
+Ahora que contamos con un sistema (o comunidad) que está siendo sometido
+a **algún tipo de perturbación o estrés**, podemos aplicar**métricas de
+estabilidad**, tanto univariadas como multivariadas, para evaluar **cómo
+responde el sistema**a esa presión externa.
+
+Estas métricas no necesariamente detectan una transición crítica en sí
+misma, pero nos dan pistas sobre **la pérdida progresiva de estabilidad
+o resiliencia**, lo cual puede preceder a un cambio abrupto en la
+dinámica del sistema.
+
+## ÍNDICE DE VARIABILIDAD MULTIVARIADO (MVI)
+
+Una de las métricas más simples incluidas en`EWSmethods`es el **índice
+de variabilidad multivariado (MVI, por sus siglas en inglés)**,
+propuesto por **Brock y Carpenter (2006)**.
+
+**¿Qué mide exactamente?**\
+El **MVI** se define como la **raíz cuadrada del valor propio
+dominante** (el mayor) de la **matriz de covarianza** de todas las
+especies en la comunidad.
+
+-   La matriz de covarianza refleja **cómo varían las especies en
+    conjunto**.
+
+-   El valor propio dominante captura la **dirección de máxima varianza
+    conjunta**.
+
+-   Al tomar la raíz cuadrada, se obtiene una métrica directa de
+    variabilidad general del sistema.
+    
+    
+Sea $\mathbf{X} = \begin{bmatrix} X_1 \\ X_2 \\ \vdots \\ X_n \end{bmatrix}$ un vector aleatorio de $n$ variables aleatorias.  
+
+
+La \textbf{matriz de varianza-covarianza} (o matriz de covarianzas) se define como:
+
+\[
+\mathbf{\Sigma} = \mathrm{Cov}(\mathbf{X}) = 
+\begin{bmatrix}
+\mathrm{Var}(X_1) & \mathrm{Cov}(X_1, X_2) & \cdots & \mathrm{Cov}(X_1, X_n) \\
+\mathrm{Cov}(X_2, X_1) & \mathrm{Var}(X_2) & \cdots & \mathrm{Cov}(X_2, X_n) \\
+\vdots & \vdots & \ddots & \vdots \\
+\mathrm{Cov}(X_n, X_1) & \mathrm{Cov}(X_n, X_2) & \cdots & \mathrm{Var}(X_n)
+\end{bmatrix}
+\]    
+
+------------------------------------------------------------------------
+
+### **¿Cómo interpretar el MVI?**
+
+-   Si el **MVI aumenta con el tiempo**, eso **sugiere una disminución
+    de la estabilidad** del sistema.
+
+-   En otras palabras, el sistema comienza a fluctuar más y de forma más
+    sincronizada entre especies, lo cual es una señal de que **la
+    comunidad puede estar acercándose a una transición o pérdida de
+    resiliencia**.
+
+```{r}
+egMVI <- mvi(data = simTransComms$community1[,2:7], winsize = 25)
+```
+
+```{r}
+mvi_plot_data <- merge(simTransComms$community1,as.data.frame(egMVI),by="time") # combine the mvi data with the raw time series
+
+ggplot(mvi_plot_data,aes(x = time, y = mvi)) + geom_line() + geom_vline(xintercept = mvi_plot_data$inflection_pt,col = "grey60", linetype = "dashed") + theme_bw() + xlab("Time") + ylab("MVI value")
+```
+
+El índice MVI mide **únicamente cuánta variación hay en el sistema**,
+pero **no detecta si las interacciones entre las especies están
+cambiando**. Por eso, este indicador tiene algunas limitaciones
+importantes:
+
+-   Es **sensible a la calidad de los datos** (por ejemplo, errores de
+    muestreo o falta de resolución temporal).
+
+-   Puede verse afectado por la **aleatoriedad natural** del sistema
+    (ruido ecológico real).
+
+-   Su desempeño puede empeorar si el **forzamiento externo** (por
+    ejemplo, una invasión, cambio climático, etc.) es **demasiado
+    rápido**.
+
+## **Jacobianos estimados por S-map (S-MAP Jacobians)**
+
+### Introducción conceptual:
+
+Estamos entrando en lo más reciente del análisis de estabilidad.\
+Estas herramientas están basadas en el enfoque de **modelado dinámico
+empírico (EDM)** desarrollado por Sugihara y col. (2012).
+
+La idea central de EDM se apoya en el **teorema de Takens (1981)**:
+
+> *Es posible reconstruir la dinámica latente de un sistema (su
+> atractor) a partir de una o más series de tiempo relacionadas.*
+
+### ¿Cómo se hace?
+
+A través de una técnica llamada **"lag embedding"**, se construyen
+versiones desplazadas en el tiempo de las series originales. A partir de
+esas “copias”, el algoritmo **S-map** estima directamente **la matriz
+Jacobiana local**— una representación del comportamiento del sistema en
+ese instante.
+
+### ¿Y qué nos dice la matriz Jacobiana?
+
+-   Contiene las **derivadas parciales de primer orden**: describe cómo
+    **cada variable (especie)** afecta a las demás.
+
+-   A través de sus **autovalores** (eigenvalues), obtenemos una medida
+    de **estabilidad local** conocida como **estabilidad de Lyapunov**.
+
+```{r}
+eg_uniJI <- uniJI(data = simTransComms$community1[,2:3], winsize = 25, E = 3)
+
+```
+
+```{r}
+uniJI_plot_data <- merge(simTransComms$community1,eg_uniJI,by="time") # combine the mvi data with the raw time series
+
+ggplot(uniJI_plot_data,aes(x = time, y = smap_J)) + geom_line() + geom_vline(xintercept = uniJI_plot_data$inflection_pt,col = "grey60", linetype = "dashed") + theme_bw() + xlab("Time") + ylab("Univariate stability index value")
+```
+
+Para todas las especies, el índice de estabilidad univariada se puede
+ver en la siguiente gráfica
+
+```{r}
+all_spp_uniJI <- sapply(grep("spp_",colnames(simTransComms$community1)),FUN = function(x){
+  if(x == 3){
+  uniJI(data = simTransComms$community1[,c(2,x)], winsize = 25, E = 3)
+  }else{
+  uniJI(data = simTransComms$community1[,c(2,x)], winsize = 25, E = 3)[,2]
+  }
+  }) # for each species, calculate the univariate stability index
+
+all_spp_uniJI <- do.call("cbind",all_spp_uniJI) # merge the list in to a data.frame
+names(all_spp_uniJI) <- c("time",paste("spp",1:5,sep="_")) # and rename missing columns
+
+all_spp_plot_data <- merge(stats::reshape(data = all_spp_uniJI,
+        direction = "long",
+        varying = colnames(all_spp_uniJI)[-1],
+        v.names = "smap_J",
+        times = colnames(all_spp_uniJI)[-1],
+        timevar = "species"),
+      simTransComms$community1[,c("time","inflection_pt")], by = "time") #pivot_longer for easier plotting and merge with the inflection point data
+
+ggplot(all_spp_plot_data,aes(x = time, y = smap_J)) + geom_line(aes(col=species)) + geom_vline(xintercept = all_spp_plot_data$inflection_pt,col = "grey60", linetype = "dashed") + theme_bw() + xlab("Time") + ylab("Univariate stability index value") + scale_colour_manual(values = c("black","#6886c4","#bfbd3d","#69c756","#e281fe")) + facet_wrap(~species)
+```
+
+Este enfoque permite observar **cómo responde cada especie de forma
+única** a los cambios en el sistema.\
+Al hacerlo, podemos **identificar cuáles especies son las más
+sensibles**, es decir, aquellas que reaccionan más rápido o más fuerte a
+perturbaciones. Estas especies pueden considerarse **especies
+indicadoras**, ya que reflejan de forma temprana la pérdida de
+estabilidad en toda la comunidad.
+
+### Implicación ecológica:
+
+-   Una especie con alta sensibilidad puede **anticipar una transición
+    crítica** antes que otras.
+
+-   Esto es clave para **monitoreo ecológico**: en lugar de seguir a
+    toda la comunidad, podrías enfocarte en unas cuantas especies clave.
+
+### ¿Qué hace`multiJI()`?
+
+-   Esta función estima un **modelo local lineal multivariado**, donde
+    todas las especies se usan para **reconstruir el espacio de
+    estados** del sistema.
+
+-   A partir de ahí, predice el siguiente estado de la comunidad.
+
+-   Los **coeficientes del modelo** sirven como **proxies
+    (aproximaciones)** de las **fuerzas de interacción** entre especies.
+
+🔗 Esto permite inferir **cómo influye cada especie sobre las demás**,
+sin necesidad de saber las ecuaciones que gobiernan el sistema.
+
+------------------------------------------------------------------------
+
+## Diferencias clave respecto a `uniJI()`
+
+| Aspecto | `uniJI()` | `multiJI()` |
+|------------------------|------------------------|------------------------|
+| Datos | Una sola especie | Todas las especies |
+| Medida | Estabilidad propia (autorregulación) | Estabilidad del sistema completo |
+| Embedding | Definido por`E`y`tau` | No se usa`E`ni`tau` |
+| Autoreferencia (lag) | Sí (embedding temporal) | No (embedding por especies) |
+
+------------------------------------------------------------------------
+
+## Detalles técnicos
+
+### `E`y`tau`:
+
+-   **No se requieren en`multiJI()`**. En lugar de eso:
+
+    -   **El número de especies**sirve como dimensión de embedding.
+
+    -   Esto implica que**la serie temporal debe tener al menos tantas
+        observaciones como especies**(si tienes 5 especies, mínimo 5
+        puntos de tiempo).
+
+-   **`tau`se fija en -1**, porque**no hay autoreferencia temporal**(ya
+    no es una serie embebida en sí misma, sino una matriz de especies).
+
+### `theta`: el parámetro clave
+
+-   **`theta`**controla el grado de no-linealidad local:
+
+    -   Valores bajos → modelo más “global” (poco peso a la cercanía).
+
+    -   Valores altos → modelo muy localizado (más peso a estados
+        similares).
+
+-   Si no se especifica,`multiJI()`selecciona el `theta`óptimo
+    **minimizando el error cuadrático medio de predicción** (RMSE).
+
+------------------------------------------------------------------------
+
+**Advertencia técnica importante**:\
+La función `multiJI()` puede ser **considerablemente más lenta** que
+otros indicadores de estabilidad/resiliencia incluidos en `EWSmethods`.
+
+Esto se debe a que `multiJI()` realiza múltiples **cruces entre
+especies** para estimar interacciones dinámicas en cada ventana del
+análisis, lo cual **aumenta mucho el costo computacional**.
+
+Por lo tanto:
+
+-   **Más especies** = más combinaciones a evaluar.
+
+-   **Series de tiempo más largas** = más ventanas a calcular.
+
+-   **Ventanas más pequeñas (`winsize`)** = más evaluaciones (más
+    ventanas deslizantes).
+
+Todo esto puede hacer que el análisis tarde desde **varios segundos
+hasta minutos**, dependiendo del tamaño del sistema.
+
+```{r}
+eg_multiJI <- multiJI(data = simTransComms$community1[,2:7], winsize = 25)
+```
+
+```{r}
+multiJI_plot_data <- merge(simTransComms$community1,eg_multiJI,by="time") # combine the mvi data with the raw time series
+
+ggplot(multiJI_plot_data,aes(x = time, y = smap_J)) + geom_line() + geom_vline(xintercept = multiJI_plot_data$inflection_pt,col = "grey60", linetype = "dashed") + theme_bw() + xlab("Time") + ylab("Mulivariate stability index value")
+```
+
+Para todas la especies
+
+```{r}
+all_spp_uniJI <- sapply(grep("spp_",colnames(simTransComms$community1)),FUN = function(x){
+  if(x == 3){
+  uniJI(data = simTransComms$community1[,c(2,x)], winsize = 25, E = 3)
+  }else{
+  uniJI(data = simTransComms$community1[,c(2,x)], winsize = 25, E = 3)[,2]
+  }
+  }) # for each species, calculate the univariate stability index
+
+all_spp_uniJI <- do.call("cbind",all_spp_uniJI) # merge the list in to a data.frame
+names(all_spp_uniJI) <- c("time",paste("spp",1:5,sep="_")) # and rename missing columns
+
+all_spp_plot_data <- merge(stats::reshape(data = all_spp_uniJI,
+        direction = "long",
+        varying = colnames(all_spp_uniJI)[-1],
+        v.names = "smap_J",
+        times = colnames(all_spp_uniJI)[-1],
+        timevar = "species"),
+      simTransComms$community1[,c("time","inflection_pt")], by = "time") #pivot_longer for easier plotting and merge with the inflection point data
+
+ggplot(all_spp_plot_data,aes(x = time, y = smap_J)) + geom_line(aes(col=species)) + geom_vline(xintercept = all_spp_plot_data$inflection_pt,col = "grey60", linetype = "dashed") + theme_bw() + xlab("Time") + ylab("Univariate stability index value") + scale_colour_manual(values = c("black","#6886c4","#bfbd3d","#69c756","#e281fe")) + facet_wrap(~species)
+```
+
+### Consejos prácticos
+
+Para **optimizar el rendimiento**:
+
+-   Usa **ventanas más grandes**si no necesitas tanta resolución.
+
+-   Reduce la **cantidad de especies** en tests exploratorios.
+
+-   Usa solo una réplica o subset de datos antes de escalar.
+
+-   Correlo primero con `winsize = 50` y sin `theta`para ver el tiempo
+    base.
+
+-   Puedes cronometrar el tiempo con `system.time()`en R:
+
+1\. Sensibilidad a **E** y **tau**
+
+Los dos métodos S-map son **muy sensibles** a los valores
+de **E** (dimensión de embedding) y **tau** (retardo).
+
+-   Si **E** es demasiado bajo, no capturas la dinámica; si es demasiado
+    alto, sobreajustas y metes ruido.
+
+-   Elegir**tau**inadecuado puede “desenfocar” la reconstrucción del
+    atractor.
+
+**Tip rápido:** usa `simplex()` y `s_map()` (paquete **rEDM**) para
+tantear qué combinaciones minimizan el error de predicción antes de
+lanzarte al cálculo de estabilidad.
+
+### 2. Efectos de estacionalidad o ciclos compartidos
+
+En series **estacionales o cíclicas**, los picos compartidos por todas
+las especies (por ejemplo primavera-invierno) pueden **inflar
+artificialmente** los valores de causalidad y de interacción estimados.
+
+-   Parecerá que todas las especies están “fuertemente acopladas”,
+    cuando en realidad solo responden al mismo ciclo ambiental.
+
+**Solución recomendada (Ushio et al. 2018):**
+
+-   **Eliminar tendencia**:`detrend_ts()`
+
+-   **Eliminar estacionalidad**:`deseason_ts()`
+
+-   Ambas funciones vienen en `EWSmethods`. Úsalas antes
+    de `uniJI()` o`multiJI()`.
+
+3\. Escalado / normalización
+
+Para evitar que una especie con abundancia enorme “domine” el
+ajuste,**escala todas las series** a varianza o rango comparables entre si.
+
+-   `uniJI()` y `multiJI()` traen el argumento `scale = TRUE`, que te lo
+    resuelve en un paso.
+
+4\. Períodos largos sin cambios
+
+Si alguna especie queda **plana** (sin variación) durante un lapso igual
+o mayor al tamaño de la ventana (`winsize`):
+
+-   `uniJI()` devuelve **NA** para esa ventana.
+
+-   `multiJI()` **descarta** la serie problemáticas.
+
+**Por qué sucede:** el algoritmo necesita calcular derivadas locales;
+si todo es constante, la matriz Jacobiana se vuelve singular o
+indefinida.
+
+3)**Jacobianos por Autocorrelación**
+
+### ¿Qué propone este enfoque?
+
+A diferencia de `uniJI()` y `multiJI()`, que se basan en
+reconstrucciones no lineales tipo *empirical dynamic modelling*(EDM),
+este método alternativo propuesto por **Williamson y Lenton
+(2015)** utiliza un enfoque más clásico y **lineal**:\
+**Modelos autorregresivos multivariados de primer orden** (AR(1)).
+
+Este método:
+
+-   Calcula una **matriz de autocorrelación multivariada con rezago
+    1**(lag-1) entre las especies.
+
+-   A partir de esa matriz, se obtienen sus **autovalores
+    reales** ($a_j$), los cuales están relacionados directamente con
+    los **autovalores de la matriz Jacobiana** ($\lambda_j$) se relacionan mediante la fórmula:
+
+#λj=1Δtlog⁡(∣aj∣)λj​=Δt1​log(∣aj​∣)
+$$\lambda_j=\frac{1}{\Delta t}\log|a_j|$$
+Aquí:
+
+-   $λ_j$ = autovalor del Jacobiano → nos da **estabilidad local**
+
+-   $a_j$= autovalor de la matriz de autocorrelación
+
+-   $\Delta t$= intervalo temporal entre observaciones
+
+------------------------------------------------------------------------
+
+### ¿Y qué pasa con $\Delta t$?
+
+En datos simulados lo puedes conocer, pero en datos reales **rara vez sabes el tiempo exacto entre eventos dinámicos reales**.\
+Por eso, **`EWSmethods` asume** Δt=1 como valor por defecto, aunque
+puedes cambiarlo manualmente si sabes más sobre la frecuencia o el
+tiempo de muestreo.
+
+------------------------------------------------------------------------
+
+## 🔍 Interpretación del índice `multiAR`
+
+Similar al enfoque `multiJI()`, este método estima una **medida local de
+estabilidad de Lyapunov**, **pero con una escala diferente**:
+
+| Valor de `multiAR`  | Interpretación                               |
+|---------------------|----------------------------------------------|
+| `multiAR < 0`       | Estable (las perturbaciones se amortiguan)   |
+| `multiAR > 0`       | Inestable (las perturbaciones se amplifican) |
+| `multiAR ≈ 0`       | Transición crítica (pérdida de estabilidad)  |
+| `multiAR` creciente | Señal de estrés creciente en el sistema      |
+
+**El umbral aquí es 0** (no 1, como en los Jacobianos EDM). La
+interpretación es la misma, pero hay que prestar atención a esta
+diferencia cuando compares enfoques.
+
+```{r}
+eg_multiAR <- multiAR(data = simTransComms$community1[,2:7], winsize = 25)
+```
+
+```{r}
+multiAR_plot_data <- merge(simTransComms$community1,eg_multiAR,by="time") # combine the mvi data with the raw time series
+
+ggplot(multiAR_plot_data,aes(x = time, y = multiAR)) + geom_line() + geom_vline(xintercept = multiAR_plot_data$inflection_pt,col = "grey60", linetype = "dashed") + theme_bw() + xlab("Time") + ylab("Mulivariate stability index value")
+
+```
+
+La función `multiAR()` presenta **limitaciones similares a las de los
+índices basados en S-map** (`multiJI` y `uniJI`):
+
+-   Es **sensible a la longitud de las series de tiempo**: si las series
+    son muy cortas, la estimación del índice puede ser poco confiable o
+    incluso fallar.
+
+-   También es sensible a **qué especies incluyes**: algunas pueden
+    tener más peso en la estimación del índice dependiendo de su
+    dinámica (por ejemplo, si están muy correlacionadas o tienen
+    abundancias altas).
+
+**Dato práctico observado por los autores:**\
+Aunque no está formalmente especificado, **se ha observado
+empíricamente** que los modelos autorregresivos multivariados
+requieren **al menos 16 puntos de tiempo** para funcionar correctamente.
+
+| Criterio | `mvi()` (Índice de variabilidad) | `multiJI()` (Jacobiano S-map) | `multiAR()` (Jacobiano por autocorrelación) |
+|----|----|----|----|
+| **Modelo asumido** | Ninguno (modelo libre) | Dinámico no lineal (EDM) | Lineal (modelo AR multivariado) |
+| **Captura interacciones** | No | Sí, explícitamente por S-map |  Sí, mediante autocorrelación multivariada |
+| **Estabilidad de Lyapunov** | No (sólo mide varianza conjunta) | Sí (autovalores del Jacobiano local) | Sí (transformación de matriz AR) |
+| **Tipo de estabilidad estimada** | Variabilidad como proxy de inestabilidad | Estabilidad local de red no lineal | Estabilidad local de red lineal |
+| **Requiere`E` y`tau`** | No | Sí (importante afinar) |  No (usa lag fijo) |
+| **Sensibilidad a especies planas** | Moderada | Alta (puede dar `NA`o distorsionar resultado) | Alta (necesita variación para matriz AR válida) |
+| **Tolerancia a series cortas** | Alta (desde \~10 puntos) | Media (ideal ≥ 25 puntos por ventana) | Baja (mínimo \~16 puntos) |
+| **Sensibilidad a estacionalidad/ciclos** | Baja | Alta (requiere *deseason* y*detrend*) | Media |
+| **Velocidad de cálculo** | Muy rápida | Lenta (reconstrucción + regresión local) | Muy rápida (\~25× más rápida que `multiJI()`) |
+| **Ideal para** | Diagnóstico general rápido | Análisis profundo de interacción y resiliencia | Evaluación ágil de estabilidad lineal |
+
+### **Recomendaciones según situación**
+
+#### **Usa `mvi()`si...**
+
+-   Tienes **pocos datos** o series muy ruidosas.
+
+-   Quieres un **análisis exploratorio rápido**.
+
+-   Solo necesitas un **termómetro general** del sistema, sin inferir
+    interacciones específicas.
+
+-   Estás trabajando con sistemas con **mucha estocasticidad** o datos
+    de baja resolución.
+
+------------------------------------------------------------------------
+
+#### **Usa `multiJI()` si...**
+
+-   Te interesa estudiar la **red de interacciones** entre especies a lo
+    largo del tiempo.
+
+-   El sistema es **no lineal**, o sospechas de cambios sutiles
+    difíciles de capturar con métodos clásicos.
+
+-   Estás dispuesto a hacer **preprocesamiento (detrend/deseason)** y
+    explorar **parámetros de embedding** (`E`, `tau`).
+
+-   Cuentas con **series largas y buena resolución temporal**.
+
+------------------------------------------------------------------------
+
+#### **Usa `multiAR()` si...**
+
+-   Necesitas **velocidad de cálculo** (muchas réplicas, análisis por
+    lotes, etc.).
+
+-   Tienes un sistema **más cercano al comportamiento lineal** (o no
+    necesitas precisión no lineal).
+
+-   Las series son moderadamente largas (**≥ 16 puntos**) y con buena
+    variabilidad.
+
+-   Ya conoces o puedes asumir el **paso temporal Δt** (o aceptas el
+    valor por defecto).
+
+------------------------------------------------------------------------
+
+### Consejo extra para análisis comparativo
+
+Puedes usar los **tres índices sobre la misma comunidad** y:
+
+1.  **Comparar visualmente** su evolución a lo largo del tiempo.
+
+2.  Buscar **coincidencias en tendencias crecientes** como evidencia más
+    robusta de pérdida de resiliencia.
+
+3.  Analizar **dónde divergen** y discutir a qué puede deberse (modelo,
+    sensibilidad, ruido, tipo de dinámica).
+
+## 4) **Información de Fisher (FI)**
+
+La **Información de Fisher (FI)** es un concepto clásico de estadística
+(Fisher y Russell, 1922) que cuantifica **cuánta información contienen
+los datos sobre un parámetro no observado**.
+
+Este enfoque ha sido adaptado para evaluar la **dinámica y estabilidad
+de sistemas complejos** (Ahmad et al., 2016), bajo la idea de
+que **sistemas estables tienden a ser más informativos** y menos
+impredecibles.
+
+En `EWSmethods`, se implementa una **versión simplificada para series de
+tiempo discretas** siguiendo la propuesta de Karunanithi et al. (2008),
+con la siguiente fórmula:
+
+$$FI \approx 4\sum_{i=1}^m[q_i−q_{i+1}]^2$$
+
+Con:
+
+-   q_i es la **probabilidad estimada** de que el sistema esté en el “estado” i,
+
+-   m es el **número de estados posibles** que puede asumir el sistema.
+
+------------------------------------------------------------------------
+
+### ¿Qué significa “estado” en este contexto?
+
+Un “estado” se define **comparando ventanas consecutivas de tiempo** en
+los datos multivariados.
+
+-   Si la **diferencia absoluta entre dos ventanas** (en todas las
+    especies) **es menor a una referencia de incertidumbre**, entonces
+    se consideran **el mismo estado**.
+
+-   Si no, se consideran **estados distintos**.
+
+Esta “incertidumbre de referencia” se define mediante un vector
+llamado `sost`, que representa el **tamaño de los
+estados** (*size-of-states*): típicamente es **2 veces la desviación
+estándar** de cada especie a lo largo de la serie (Karunanithi et al.,
+2008).
+
+------------------------------------------------------------------------
+
+## Interpretación del índice FI
+
+Cuando el índice FI **disminuye**, se interpreta como que **la
+estabilidad del sistema también está disminuyendo**.
+
+¿Por qué? Porque:
+
+-   En sistemas estables, los estados tienden a repetirse → alta
+    información → FI alto.
+
+-   En sistemas inestables, hay más fluctuación → menos regularidad → FI
+    bajo.
+
+------------------------------------------------------------------------
+
+```{r}
+eg.sost <- t(apply(simTransComms$community1[,3:7], MARGIN = 2, FUN = sd)) # define size-of-states using the standard deviation of each species separately. Must be wide format hence t()
+
+egFI <- FI(data = simTransComms$community1[,2:7], sost =  eg.sost, winsize = 25,winspace = 1, TL = 90)$FI
+```
+
+Si graficamos nuevamente el índice de **Información de Fisher (FI)**,
+podemos observar que **hay diferencias claras en la estabilidad antes y
+después del punto de inflexión**, es decir, el momento en que la
+comunidad atraviesa una transición crítica.
+
+También es evidente que el **FI comienza a disminuir antes del cambio
+repentino**, lo que sugiere una **pérdida anticipada de estabilidad**.\
+Además, la **estabilidad no se recupera inmediatamente**, sino **hasta
+bastante después** de que el estrés se estabiliza (el cual se mantiene
+constante a partir del tiempo **t = 200**).
+
+```{r}
+fi_plot_data <- merge(simTransComms$community1,egFI,by="time") # combine the mvi data with the raw time series
+
+ggplot(fi_plot_data,aes(x = time, y = FI)) + geom_line() + geom_vline(xintercept = fi_plot_data$inflection_pt,col = "grey60", linetype = "dashed") + theme_bw() + xlab("Time") + ylab("Fisher Information value")
+```
